@@ -1,0 +1,31 @@
+#!/bin/bash
+##Created by: Jamie Beach
+##Updated: 3NOV2020
+##Purpose: 
+##  Run regular reports about specific group's devices patching status from Automox that only includes certain information that the organization wants to track. 
+##  This script pulls the devices from a single group and prints out the device id, uuid, name, and device status.
+##  This script pulls information from nested JSON information located in lists and dictionaries.
+##Automox Site: https://docs.automox.com/api/endpoints/get-servers
+
+import requests
+import json
+
+url = "https://console.automox.com/api/servers"
+
+querystring = {"groupId":group_id_here,"o":"org_id_here","needsAttention":"1","l":"600","p":"0"}
+
+headers = {
+    'Authorization': "Bearer API_Key_Here"
+    }
+
+response = requests.request("GET", url, headers=headers, params=querystring)
+
+#print(response.text)
+
+json_id = response.json()
+
+for i in json_id['results']:
+    print('Server ID: ',i['id'])
+    print('Server UUID: ',i['uuid'])
+    print('Server Name: ',i['name'])
+    print('Device Status: ',json_id['results'][0]['status']['device_status'])
