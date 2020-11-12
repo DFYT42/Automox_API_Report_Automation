@@ -1,0 +1,100 @@
+##Created by Jamie Beach
+##Updated: 11Nov2020
+##Purpose:
+##Pull Automox patching report for specified group devices.
+##This script will pull information on devices in need of attention
+##and print to the specified Slack channel.
+
+########################Imports########################
+import requests
+import json
+import datetime
+
+########################Variables########################
+####General Variables####
+#Time variables for message header identifying the reporting week of current year
+time = datetime.date.today()
+year, week_num, day_of_week = time.isocalendar()
+
+####Automox variables####
+autourl = "https://console.automox.com/api/servers"
+autoquerystring = {
+    "groupId":your_group_id_here,        #required by automox
+    "o":"your_org_id_here",             #required by automox
+    "needsAttention":"1",
+    "l":"600",              #required by automox
+    "p":"0"                 #required by automox
+    }
+autoheaders = {
+    'Authorization': "Bearer your_api_key_here"
+    }
+response = requests.request("GET", autourl, headers=autoheaders, params=autoquerystring)
+json_info = response.json()
+
+####Slack variables####
+slackurl = 'https://hooks.slack.com/services/your_slack_token/your_slack_token/your_slack_token'
+slackheaders = {
+    'Content-Type':'application/json'
+    }
+
+########################Functions########################
+####Automox Functions
+##Pull Automox info on group devices that need attention
+def automox_group_device_status():
+    ##empty list for storing device information
+    status = []
+    ##loop through Automox json information and select only information from devices needing attention
+    for i in json_info['results']:
+        ##if device 'needs attention' marker is true, then collect certain information and store in status list
+        if i['needs_attention']==True:
+            device = []
+            device.append(i['id'])
+            device.append(i['uuid'])
+            device.append(i['name'])
+            device.append(i['needs_attention'])
+            device.append(json_info['results'][0]['status']['device_status'])
+            status.append(device)
+    return(status) 
+
+##Function for testing Automox API output
+def testing_things_out(automox_group_device_status):
+    for i in automox_group_device_status():
+        print("ID: ",i[0])
+        print("UUID: ",i[1])
+        print("Name: ",i[2])
+        print("Needs Attention: ",i[3])
+        print("Status: ",i[4])
+        print(" ")
+        
+####Slack Functions####
+##Function to loop through function automox_group_device_status
+##and POST device information to slack channel
+def slack_message_try(automox_group_device_status):
+    ##header message for Slack POST for weekly report header
+    b = ("*%s Automox Patching Report for Week # %s of %s*\n" \
+      % (time,week_num,year))
+    ##internal function slack POST for weekly report header
+    response = requests.post(slackurl, headers=slackheaders, json={"text":b})
+    ##loop through Automox list and print device needing update info
+    for i in automox_group_device_status():
+        ##internal function place holder variables
+        aa = i[0] #device ID
+        bb = i[1] #device UUID
+        cc = i[2] #device Name
+        dd = i[3] #device attention boolean
+        ee = i[4] #device status
+        ##internal function printout
+        a = ("\n" \
+             "ID: %s\n" \
+             "UUID: %s\n" \
+             "Name: %s\n" \
+             "Needs Attention: %s\n" \
+             "Status: %s\n" \
+             % (aa,bb,cc,dd,ee))
+        ##internal function slack POST for individual devices
+        response = requests.post(slackurl, headers=slackheaders, json={"text":a})
+
+########################Calls########################
+slack_message_try(automox_group_device_status)
+
+
